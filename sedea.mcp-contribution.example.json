@@ -1,0 +1,15 @@
+{
+  "$schema": "./sedea.mcp-contribution.schema.json",
+  "extensionId": "your-publisher-id.sedea-extension-template",
+  "version": "0.1.0",
+  "servers": [
+    {
+      "id": "example-tools",
+      "displayName": "Example MCP tools",
+      "transport": "stdio",
+      "command": "node",
+      "args": ["${extensionPath}/out/mcp-server.js"],
+      "description": "Replace with your extension-owned MCP server entrypoint."
+    }
+  ]
+}
