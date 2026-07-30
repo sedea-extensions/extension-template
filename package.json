@@ -1,0 +1,43 @@
+{
+  "name": "sedea-extension-template",
+  "displayName": "Sedea Extension Template",
+  "description": "Starter template for user bespoke Sedea VS Code extensions.",
+  "version": "0.1.0",
+  "publisher": "your-publisher-id",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "sedeaExtensionTemplate.hello",
+        "title": "Sedea Extension Template: Hello"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "typecheck": "tsc -p ./ --noEmit",
+    "test": "vitest run",
+    "verify": "npm run lint && npm run typecheck && npm run compile && npm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/node": "25.6.2",
+    "@types/vscode": "1.104.0",
+    "eslint": "^9.28.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.62.0",
+    "vitest": "3.0.5"
+  }
+}

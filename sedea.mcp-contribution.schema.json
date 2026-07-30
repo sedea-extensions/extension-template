@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sedea.ai/schemas/sedea-mcp-contribution/v0.1",
+  "title": "Sedea extension MCP contribution manifest",
+  "type": "object",
+  "required": ["extensionId", "version", "servers"],
+  "properties": {
+    "extensionId": {
+      "type": "string",
+      "description": "Stable extension identifier (publisher.name)."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semver of the shipped VSIX."
+    },
+    "servers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "transport"],
+        "properties": {
+          "id": { "type": "string" },
+          "displayName": { "type": "string" },
+          "description": { "type": "string" },
+          "transport": { "enum": ["stdio", "sse"] },
+          "command": { "type": "string" },
+          "args": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "url": { "type": "string", "format": "uri" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
