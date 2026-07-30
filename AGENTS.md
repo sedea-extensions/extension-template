@@ -8,6 +8,8 @@ This repository is a **standalone Sedea VS Code extension** (user bespoke). It i
 |------|---------|
 | `src/extension.ts` | Extension activation entrypoint |
 | `package.json` | Manifest, scripts, engine constraints |
+| `.vscode/launch.json` | Extension Development Host debug config (**Run Extension**) |
+| `.vscode/tasks.json` | Verify and build tasks for the VS Code task runner |
 | `sedea.mcp-contribution.example.json` | Example MCP contribution manifest (install-time registration) |
 | `.github/workflows/ci.yml` | Compile, lint, and test on push/PR |
 
@@ -34,9 +36,11 @@ npm run test
 After `npm run verify` passes:
 
 1. Open this folder in **Sedea** (or VS Code-compatible fork with extension development support).
-2. Press **F5** (or **Run → Start Debugging**) to launch an **Extension Development Host**.
+2. Press **F5** (or **Run → Start Debugging**) — the checked-in **Run Extension** launch config in `.vscode/launch.json` opens an **Extension Development Host** (compiles via the default build task first).
 3. In the EDH window, open the Command Palette and run **Sedea Extension Template: Hello** (`sedeaExtensionTemplate.hello`).
 4. Confirm the information message appears — activation and command registration work.
+
+Optional from the workspace (no terminal required): **Tasks: Run Task → npm: verify** runs the full verify pipeline defined in `.vscode/tasks.json`.
 
 Optional: package a VSIX for install testing:
 
