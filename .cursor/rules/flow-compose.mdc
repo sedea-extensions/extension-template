@@ -1,0 +1,111 @@
+---
+description: flow-compose usage and development baseline for Sedea extensions
+alwaysApply: false
+---
+
+# flow-compose pattern (@execution-flows/flow-compose)
+
+## How to invoke
+
+- **`flow`** is invoked by supplying context map members that are `flowArgument`. E.g. if the context has `{ item: flowArgument<Item>(), ... }`, you call it as `myFlow({ item: someItem })`. Flows with no `flowArgument` entries are called with no arguments: `myFlow()`.
+- The signature of a composed `flow()` is inferred from its `flowArgument` entries — `(args: { … }) => R` when arguments exist, `() => R` otherwise — so `typeof myFlow` is directly assignable to dispatch-registry types without `as unknown as` casts. Use `InferFlowArgs<typeof contextMap>` (alias of `ArgsFromMarkers`) if you need the args object type explicitly.
+- **`flowFunction`** and **`flowProperty`** are invoked by calling the runner with only non-runner arguments (typically nullary). They receive sibling runners automatically via the body's destructured parameter — you never pass runners yourself.
+
+## How to define
+
+- **`flow(context, body)`** — the context map is the **union of all runners** the flow receives: `flowProperty`, `flowFunction`, `Flow()`, and `flowArgument` entries. The body destructures the runners it needs, typed with `FlowFunction<R>`.
+- **`flowProperty(body, options?)`** — resolved once per flow invocation, cached. The body destructures runners typed with `FlowFunction<R>`. `options.resolve` (`"thunk"` default | `"value"`) controls function-as-data semantics; see Rule 11. `FlowPropertyOptions = Omit<FlowFunctionOptions, "cached">` — `cached` is forced; only set `resolve`.
+- **`flowFunction(body, options?)`** — an action; the body destructures runners typed with `FlowFunction<R>` and returns the function to execute. `options` accepts an optional `cached` flag and the same `resolve` strategy as `flowProperty`.
+- **`Flow(composedFlow)`** — wraps a composed flow for nesting; each invocation gets a fresh context.
+- **`flowArgument<T>()`** — declares a required input from the caller. Always inline in the context map.
+
+## Treat flow-compose as a black box
+
+Do **not** read or reason about the internals of the `@execution-flows/flow-compose` package. Stick to the surface API described in this rule — exported runtime: `flow`, `flowFunction`, `flowProperty`, `flowArgument`, `Flow`; exported types: `FlowFunction`, `FlowFunctionOptions`, `FlowFunctionResolve`, `FlowPropertyOptions`, `ArgsFromMarkers`, `InferFlowArgs`. If something doesn't work as expected:
+
+1. Report the issue.
+2. Write a minimal test that reproduces it, so it can be fixed in the package.
+3. If a workaround exists, propose it. If we adopt it, mark it with `// WORKAROUND: <description> — remove after flow-compose patch` so it gets cleaned up.
+
+## Design rules
+
+1. **Global data via closure.** Module-level singletons (`database`, `logger`, `config`) are accessed directly, not through `flowProperty`.
+2. **flowProperty for anything without mutation.** If a step does not mutate state (in-process, external service, or database), it is a `flowProperty` — even if it performs I/O like a `SELECT` query. `flowProperty` is resolved once per flow invocation and cached, so multiple steps can reference the same runner without triggering duplicate work. This also applies to mutations whose result is needed by other steps (e.g. `INSERT ... RETURNING`): the operation executes exactly once and the returned value is shared.
+3. **flowFunction for imperative side effects.** Use `flowFunction` when the step's purpose is the mutation itself (database writes, external service calls, publishing messages) and other steps do not need its return value as data. If they do, prefer `flowProperty` — the caching guarantee means the mutation still runs exactly once.
+4. **Nested flows (`Flow()`) for fresh context.** Use when the child needs its own `flowProperty` values resolved per call.
+5. **Prefer nullary flowFunctions.** Data comes from `flowProperty` or `flowArgument`, not from function parameters. Non-runner arguments are acceptable only for values that don't come from the flow context, like external callback parameters or ephemeral loop values.
+6. **Sub-flows to scope per-item data.** Use `flowArgument` on a sub-flow when iterating a collection.
+7. **Destructure the body parameter.** Never name it `runners`. Type each entry with `FlowFunction<R>`.
+8. **Single responsibility per flowFunction.** Bridge data between steps with `flowProperty`.
+9. **Call properties inline; store side-effect results.** Scalar properties (nouns like `appId`, `taskId`, `configId`) are cached — call them directly where the value is needed (`appId()`, `await taskId()`) instead of extracting into local variables at the top. This signals they are context values with no side effects. Reserve local variables for `flowFunction` calls (verbs like `createRecord`, `processJob`) whose purpose is a side effect. Exception: when an async property resolves to a collection that is iterated, counted, and mapped, storing the resolved array in a local (e.g. `const devices = await eligibleDevices()`) is fine — you are holding the data, not aliasing the runner.
+10. **Promote plain functions that only consume context values.** If a helper function's parameters are all values already available as runners in the flow context, convert it to a `flowProperty` (or `flowFunction` if side-effectful) so it receives runners directly and is nullary from the flow body. This eliminates manual wiring (`helperFn(job(), await config())`) and keeps the flow body focused on orchestration, not data plumbing.
+11. **Use `{ resolve: "value" }` for function-valued steps.** By default (`resolve: "thunk"`), if a `flowProperty` / `flowFunction` body returns a function, flow-compose treats it as a deferred factory and invokes it on consumer call (and caches per-args when `cached`). When the step's value **is** the function (mappers, predicates, callbacks, dispatch functions threaded as data), pass `{ resolve: "value" }` so the runner returns the function reference verbatim: `flowProperty(() => opts.mapRow, { resolve: "value" })`, consumed as `mapRow()`. Do **not** use the legacy `{ run: fn }` wrapper idiom — it leaked an implementation detail into every consumer site and obscured the carried function type.
+12. **Dereference aggregate objects into scalar flowProperties.** When a `flowArgument` or `flowProperty` resolves to an object (e.g. `job: ClaimedJob`), create small shared `flowProperty` extractors for each field other steps need — `appIdFromJob`, `jobTypeFromJob`, `jobConfigFromJob`, `segmentIdFromJob`, etc. Downstream flow-steps then depend on the scalar (`appId: FlowFunction<string>`) instead of the aggregate (`job: FlowFunction<ClaimedJob>`). This decouples steps from the aggregate's shape, makes them reusable across flows that supply the same scalar via a different source, and keeps dependency signatures narrow. The aggregate remains in the flow context as the single source for the extractors; no other flow-step or body should call the aggregate runner directly.
+
+## File naming
+
+| Suffix | Contains |
+|---|---|
+| `.flow.ts` | A composed `flow()` — a flow entry point or sub-flow |
+| `.flow-step.ts` | One or more `flowFunction` / `flowProperty` exports (building blocks) |
+| `.ts` (plain) | Pure/utility functions that don't use `flowFunction` or `flowProperty` |
+
+Callers see both `flowFunction` and `flowProperty` as `FlowFunction<R>` in their destructured parameter, so one suffix covers both. Reserve the `.flow-step.ts` suffix for files that actually export flow-compose primitives. Plain helper functions called from within a flow (e.g. message body builders, API clients) use a plain `.ts` suffix even when colocated under `src/flows/`.
+
+This is a forward-looking convention for **new** files. Existing wiring files (e.g. `extension.ts`) may remain plain `.ts` until refactored; rename to `.flow.ts` / `.flow-step.ts` when creating new flows or extracting steps from existing code.
+
+## Example
+
+```typescript
+import { flow, flowFunction, flowProperty, flowArgument, Flow, type FlowFunction } from '@execution-flows/flow-compose';
+
+// Rule 12: dereference aggregate into scalar extractors (shared flow-steps)
+const itemIdFromItem = flowProperty(({ item }: { item: FlowFunction<Item> }) => item().id);
+const itemNameFromItem = flowProperty(({ item }: { item: FlowFunction<Item> }) => item().name);
+
+// Downstream steps depend on scalars, not the aggregate
+const processItem = flowFunction(({ itemId, itemName }: {
+  itemId: FlowFunction<number>;
+  itemName: FlowFunction<string>;
+}) => async () => {
+  await externalService.process(itemId(), itemName());
+});
+
+const markItemDone = flowFunction(({ itemId }: { itemId: FlowFunction<number> }) => async () => {
+  await db.query('UPDATE items SET done = true WHERE id = $1', [itemId()]);
+});
+
+// context = union of all runners; flowArgument declares caller-supplied input
+// The aggregate `item` stays in context as the source for the extractors
+const processItemFlow = flow(
+  { item: flowArgument<Item>(), itemId: itemIdFromItem, itemName: itemNameFromItem, processItem, markItemDone },
+  ({ processItem, markItemDone }: {
+    processItem: FlowFunction<Promise<void>>;
+    markItemDone: FlowFunction<Promise<void>>;
+  }) => async () => {
+    try { await processItem(); } finally { await markItemDone(); }
+  }
+);
+
+const fetchItems = flowFunction(() => async (): Promise<Item[]> => []);
+const items = flowProperty(({ fetchItems }: { fetchItems: FlowFunction<Promise<Item[]>> }) => fetchItems());
+
+const processBatch = flow(
+  { fetchItems, items, processItemFlow: Flow(processItemFlow) },
+  ({ items, processItemFlow }: {
+    items: FlowFunction<Promise<Item[]>>;
+    processItemFlow: (args: { item: Item }) => Promise<void>;
+  }) => async () => {
+    const batch = await items();
+    await Promise.all(batch.map(i => processItemFlow({ item: i })));
+  }
+);
+
+// No flowArgument — invoked with no arguments: processBatch()
+const mainLoop = flow(
+  { processBatch: Flow(processBatch) },
+  ({ processBatch }: { processBatch: FlowFunction<Promise<void>> }) => async () => {
+    while (running) { await processBatch(); }
+  }
+);
+```
