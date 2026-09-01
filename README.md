@@ -6,21 +6,23 @@ Generate a new project from this template (GitHub **Use this template** or `gh r
 
 1. Replace `your-publisher-id` in `package.json`.
 2. Run `npm ci && npm run verify`.
-3. Read **`AGENTS.md`** for EDH smoke and MCP contribution guidance.
+3. Read **`AGENTS.md`** for Storybook, EDH smoke, and MCP contribution guidance.
 
 ## What v0.1 includes
 
 - TypeScript extension shell with compile / lint / typecheck / test scripts
 - Vitest unit test stub
-- GitHub Actions CI (`.github/workflows/ci.yml`)
-- **`AGENTS.md`** — EDH smoke, extension MCP contribution appendix, Sedea MCP Hub external-only boundary
+- **Storybook baseline** — React + `@storybook/react-vite` 8.x for isolated webview UI development (`webview-src/components/`)
+- GitHub Actions CI (`.github/workflows/ci.yml`) — `verify` plus static `build-storybook` on every PR
+- **`AGENTS.md`** — Storybook quick-start, EDH smoke, extension MCP contribution appendix, Sedea MCP Hub external-only boundary
 - Example MCP contribution manifest (`sedea.mcp-contribution.example.json`)
 
 ## What v0.1 does not include
 
-- Webview UI shell (optional follow-up)
+- Full webview ↔ extension host message-passing scaffold (Storybook covers isolated component dev only)
 - Runtime MCP server implementation (document manifest only)
 - Sedea app monorepo wiring (`@sedea/extension-shared`, native extension symlinks)
+- Mandatory Chromatic visual regression (opt-in via repo secret — see `AGENTS.md`)
 
 ## Governance
 
