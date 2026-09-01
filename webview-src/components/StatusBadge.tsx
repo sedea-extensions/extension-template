@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import React, { type CSSProperties } from 'react';
 
 export type StatusBadgeVariant = 'default' | 'loading' | 'empty' | 'error';
 
