@@ -7,11 +7,13 @@ This repository is a **standalone Sedea VS Code extension** (user bespoke). It i
 | Path | Purpose |
 |------|---------|
 | `src/extension.ts` | Extension activation entrypoint |
+| `webview-src/components/` | Example React UI components and colocated `.stories.tsx` files |
+| `.storybook/` | Storybook 8.x config (`main.ts`, `preview.ts`) |
 | `package.json` | Manifest, scripts, engine constraints |
 | `.vscode/launch.json` | Extension Development Host debug config (**Run Extension**) |
 | `.vscode/tasks.json` | Verify and build tasks for the VS Code task runner |
 | `sedea.mcp-contribution.example.json` | Example MCP contribution manifest (install-time registration) |
-| `.github/workflows/ci.yml` | Compile, lint, and test on push/PR |
+| `.github/workflows/ci.yml` | Compile, lint, test, and static Storybook build on push/PR |
 
 ## Developer commands
 
@@ -31,7 +33,32 @@ npm run typecheck
 npm run test
 ```
 
-## Extension Development Host (EDH) smoke
+## Storybook (webview UI development)
+
+Use Storybook for isolated React component iteration. Sedea native extensions (`app/extensions/*`) use **Preact** — this template uses **React** for broader VS Code extension ecosystem familiarity. Do not import the `vscode` module from Storybook-rendered modules; keep extension-host coupling in `src/extension.ts`.
+
+```bash
+npm run storybook          # dev server at http://localhost:6006
+npm run build-storybook    # static output to storybook-static/ (gitignored)
+```
+
+| When to use | Tool |
+|-------------|------|
+| Component layout, states, visual review | **Storybook** |
+| Command registration, activation, VS Code API | **Extension Development Host (EDH)** |
+
+Example stories live under `webview-src/components/` (see `StatusBadge.stories.tsx`).
+
+### Optional Chromatic (visual regression)
+
+Chromatic is **opt-in** — CI skips it when `CHROMATIC_PROJECT_TOKEN` is not configured.
+
+1. Create a [Chromatic](https://www.chromatic.com/) project for this repo.
+2. Add `CHROMATIC_PROJECT_TOKEN` as a GitHub Actions secret.
+3. Run locally: `npm run chromatic` (uses `chromatic --exit-zero-on-changes`).
+
+Forks and scaffolded projects without Chromatic remain green — static `build-storybook` is the baseline CI gate.
+
 
 After `npm run verify` passes:
 

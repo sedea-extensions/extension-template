@@ -19,6 +19,16 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['**/*.test.ts', 'out/**'],
+    files: ['webview-src/**/*.{ts,tsx}', '.storybook/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+  },
+  {
+    ignores: ['**/*.test.ts', 'out/**', 'storybook-static/**'],
   },
 );
