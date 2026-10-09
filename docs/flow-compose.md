@@ -1,8 +1,3 @@
----
-description: flow-compose usage and development baseline for Sedea extensions
-alwaysApply: false
----
-
 # flow-compose pattern (@execution-flows/flow-compose)
 
 ## How to invoke
